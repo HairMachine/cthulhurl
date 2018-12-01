@@ -8,6 +8,9 @@ int xpos, ypos;
 
 uint8_t dijkstra_adjust_map(int x, int y) {
     int current = map[x][y];
+    if (current == -1) {
+        return 0;
+    }
     uint8_t changed = 0;
     for (int xi = x - 1; xi <= x + 1; xi++) {
         for (int yi = y - 1; yi <= y + 1; yi++) {
@@ -26,7 +29,6 @@ uint8_t dijkstra_adjust_map(int x, int y) {
 int main() {
     uint8_t changed;
     int loops;
-    changed = 0;
     loops = 0;
     for (int x = 0; x < 20; x++) {
         for (int y = 0; y < 20; y++) {
@@ -36,11 +38,14 @@ int main() {
     xpos = 5;
     ypos = 5;
     map[xpos][ypos] = 0;
+    for (int i = 0; i < 10; ++i) {
+        map[7][i] = -1;
+    }
     do {
         changed = 0;
         for (int x = 0; x < 20; x++) {
             for (int y = 0; y < 20; y++) {
-                if (changed == 0 && dijkstra_adjust_map(x, y) == 1) {
+                if (dijkstra_adjust_map(x, y) == 1 && changed == 0) {
                     changed = 1;
                 }
             }
@@ -48,7 +53,12 @@ int main() {
     } while (loops++ < 10000 && changed == 1);
     for (int y = 0; y < 20; y++) {
         for (int x = 0; x < 20; x++) {
-            printf("%i", map[x][y]);
+            if (map[x][y] < 10 && map[x][y] >= 0) {
+                printf("  %i", map[x][y]);
+            }
+            else {
+                printf(" %i", map[x][y]);
+            }
         }
         printf("\n");
     }

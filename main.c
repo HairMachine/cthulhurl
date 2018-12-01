@@ -12,9 +12,6 @@
 int eid = 0;
 int turns = 0;
 int level = 0;
-int maxLevel = 59;
-int foes = 0;
-int kills = 0;
 // FIXME: Garbage
 int controlMode = 0;
 // TODO: Get this from the player's body component
@@ -694,6 +691,7 @@ int main() {
     entity_create_at_pos(ENT_PLAYER, rand() % MAPSIZEX, rand() % MAPSIZEY, 0);
     world_map_init();
     targeter_init();
+    message_log_init();
     worldPos.z = 8;
     worldPos.x = 8;
     worldPos.y = 8;
