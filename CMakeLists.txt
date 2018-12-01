@@ -234,4 +234,5 @@ add_executable(cthulhurl
         libtcod-1.5.1/src/zip.cpp
         libtcod-1.5.1/src/zip_c.c
         main.c
-        test.c)
+        test.c
+        dijkstra.c)

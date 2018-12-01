@@ -1,3 +1,3 @@
 #!/bin/bash
 
-gcc main.c -Iinclude -L. -ltcod -ltcodxx -Wl,-rpath=. -Wall
+gcc main.c dijkstra.c -Iinclude -L. -ltcod -ltcodxx -Wl,-rpath=. -Wall

@@ -2,66 +2,16 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-
-int map[20][20];
-int xpos, ypos;
-
-uint8_t dijkstra_adjust_map(int x, int y) {
-    int current = map[x][y];
-    if (current == -1) {
-        return 0;
-    }
-    uint8_t changed = 0;
-    for (int xi = x - 1; xi <= x + 1; xi++) {
-        for (int yi = y - 1; yi <= y + 1; yi++) {
-            if (xi < 0 || yi < 0 || xi > 19 || yi > 19) {
-                continue;
-            }
-            if (map[xi][yi] - current > 1) {
-                map[xi][yi] = current + 1;
-                changed = 1;
-            }
-        }
-    }
-    return changed;
-}
+#include "dijkstra.h"
 
 int main() {
-    uint8_t changed;
-    int loops;
-    loops = 0;
-    for (int x = 0; x < 20; x++) {
-        for (int y = 0; y < 20; y++) {
-            map[x][y] = 9999;
-        }
-    }
-    xpos = 5;
-    ypos = 5;
-    map[xpos][ypos] = 0;
-    for (int i = 0; i < 10; ++i) {
-        map[7][i] = -1;
-    }
-    do {
-        changed = 0;
-        for (int x = 0; x < 20; x++) {
-            for (int y = 0; y < 20; y++) {
-                if (dijkstra_adjust_map(x, y) == 1 && changed == 0) {
-                    changed = 1;
-                }
-            }
-        }
-    } while (loops++ < 10000 && changed == 1);
-    for (int y = 0; y < 20; y++) {
-        for (int x = 0; x < 20; x++) {
-            if (map[x][y] < 10 && map[x][y] >= 0) {
-                printf("  %i", map[x][y]);
-            }
-            else {
-                printf(" %i", map[x][y]);
-            }
+    DijkstraMap* dm = dijkstra_map_generate(40, 40, 10, 15);
+    for (int y = 0; y < 40; y++) {
+        for (int x = 0; x < 40; x++) {
+            printf("%i", dijkstra_map_val(dm, x, y));
         }
         printf("\n");
     }
-    printf("LOOPS: %i\n", loops);
+    dijkstra_map_free(dm);
     return 0;
 }

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <string.h>
+#include "dijkstra.h"
 
 #define MAXCOMPONENTS 2048
 #define MAPSIZEX 40
@@ -206,7 +207,7 @@ typedef struct PositionComponent {
 } PositionComponent;
 
 typedef enum AiType {
-    AI_RANDOM, AI_BEELINE, AI_STRAIGHT
+    AI_RANDOM, AI_BEELINE, AI_STRAIGHT, AI_SMART
 } AiType;
 
 typedef struct AiComponent {
@@ -297,7 +298,7 @@ int entity_create_at_pos(EntityType t, int x, int y, int dir) {
             break;
         case ENT_SLIME:
             component_create_position(eid, x, y, 'S', ST_SOLID, TCOD_light_blue);
-            component_create_ai(eid, AI_BEELINE, 0, 1250);
+            component_create_ai(eid, AI_SMART, 0, 1250);
             component_create_body(eid, 1);
             break;
         case ENT_WALL:
@@ -531,6 +532,39 @@ void system_render() {
     }
 }
 
+void helper_ai_smart(PositionComponent* p, PositionComponent* target) {
+    int lowest = 9999;
+    int targetX = 0;
+    int targetY = 0;
+    int val;
+    int closest = 9999;
+    // todo: Some form of caching for maps? Reusable amongst all enemies, for example.
+    DijkstraMap* dm = dijkstra_map_init(MAPSIZEX, MAPSIZEY);
+    for (int i = 0; i < pcl.count; ++i) {
+        PositionComponent* tp = &pcl.list[i];
+        if (tp->solid == ST_SOLID) {
+            dijkstra_map_set_impassable(dm, tp->x, tp->y);
+        }
+    }
+    dijkstra_map_set_target(dm, target->x, target->y);
+    for (int x = p->x - 1; x <= p->x + 1; ++x) {
+        for (int y = p->y - 1; y <= p->y + 1; ++y) {
+            if (x == p->x && y == p->y) {
+                continue;
+            }
+            val = dijkstra_map_val(dm, x, y);
+            if (val > 0 && (val < lowest || (val == lowest && abs(x - p->x) + abs(y - p->y) < closest))) {
+                lowest = val;
+                closest = abs(x - p->x) + abs(y - p->y);
+                targetX = x - p->x;
+                targetY = y - p->y;
+            }
+        }
+    }
+    helper_move(p, targetX, targetY);
+    dijkstra_map_free(dm);
+}
+
 void system_ai() {
     int xm, ym;
     for (int i = 0; i < aicl.count; ++i) {
@@ -560,6 +594,9 @@ void system_ai() {
                             case 2: helper_move(p, -1, 0); break;
                             case 3: helper_move(p, 1, 0); break;
                         }
+                        break;
+                    case AI_SMART:
+                        helper_ai_smart(p, &pcl.list[i]);
                         break;
                     default:
                         break;
@@ -631,9 +668,9 @@ Map map_gen(MapType mt) {
     Map m;
     switch (mt) {
         case MAP_FOREST:
-            for (int x = 0; x <= MAPSIZEX; x++) {
-                for (int y = 0; y <= MAPSIZEY; y++) {
-                    if (x == 0 || y == 0 || x == MAPSIZEX || y == MAPSIZEY) {
+            for (int x = 0; x < MAPSIZEX; x++) {
+                for (int y = 0; y < MAPSIZEY; y++) {
+                    if (x == 0 || y == 0 || x == MAPSIZEX - 1 || y == MAPSIZEY - 1) {
                         map_add_entity(&m, entity_create_at_pos(ENT_WALL, x, y, 0));
                     }
                     else if (rand() % 20 == 0) {
@@ -643,9 +680,9 @@ Map map_gen(MapType mt) {
             }
             break;
         case MAP_STREETS:
-            for (int x = 0; x <= MAPSIZEX; x++) {
-                for (int y = 0; y <= MAPSIZEY; y++) {
-                    if (x == 0 || y == 0 || x == MAPSIZEX || y == MAPSIZEY) {
+            for (int x = 0; x < MAPSIZEX; x++) {
+                for (int y = 0; y < MAPSIZEY; y++) {
+                    if (x == 0 || y == 0 || x == MAPSIZEX - 1 || y == MAPSIZEY - 1) {
                         map_add_entity(&m, entity_create_at_pos(ENT_WALL, x, y, 0));
                     }
                 }
@@ -696,6 +733,7 @@ int main() {
     worldPos.x = 8;
     worldPos.y = 8;
     map_load();
+    entity_create_at_pos(ENT_SLIME, 5, 5, 0);
     int done = 0;
     TCOD_console_init_root(80, 50, "AnchorheadRL", false, TCOD_RENDERER_SDL);
     message_add("You are in a forest. Gnarled trees stick up through the hard earth like broken fingers. It is raining.");
