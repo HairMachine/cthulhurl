@@ -9,6 +9,7 @@
 #define MAXCOMPONENTS 2048
 #define MAPSIZEX 40
 #define MAPSIZEY 40
+#define MAPRENDERSTART 40
 
 int eid = 0;
 int turns = 0;
@@ -88,7 +89,7 @@ void message_add(char* m) {
 void message_log_display() {
     TCOD_console_set_default_foreground(NULL, TCOD_white);
     for (int i = 0; i < MSG_NUM; ++i) {
-        TCOD_console_print(NULL, 41, i, message_log[i]);
+        TCOD_console_print(NULL, 0, i, message_log[i]);
     }
 }
 
@@ -131,7 +132,7 @@ void targeter_render() {
     }
     if (currentTargeter->x >=0 && currentTargeter->y >= 0) {
         TCOD_console_set_default_foreground(NULL, currentTargeter->col);
-        TCOD_console_put_char(NULL, currentTargeter->x, currentTargeter->y, currentTargeter->glyph, TCOD_BKGND_NONE);
+        TCOD_console_put_char(NULL, MAPRENDERSTART + currentTargeter->x, currentTargeter->y, currentTargeter->glyph, TCOD_BKGND_NONE);
     }
 }
 
@@ -520,6 +521,9 @@ int system_player_control() {
             return 1;
         }
     }
+    else if (key.vk == TCODK_ESCAPE) {
+        return 2;
+    }
     return 0;
 }
 
@@ -527,7 +531,7 @@ void system_render() {
     for (int i = 0; i < pcl.count; ++i) {
         if (pcl.list[i].c && pcl.list[i].presence == PT_HERE) {
             TCOD_console_set_default_foreground(NULL, pcl.list[i].colour);
-            TCOD_console_put_char(NULL, pcl.list[i].x, pcl.list[i].y, pcl.list[i].c, TCOD_BKGND_NONE);
+            TCOD_console_put_char(NULL, MAPRENDERSTART + pcl.list[i].x, pcl.list[i].y, pcl.list[i].c, TCOD_BKGND_NONE);
         }
     }
 }
@@ -735,7 +739,7 @@ int main() {
     map_load();
     entity_create_at_pos(ENT_SLIME, 5, 5, 0);
     int done = 0;
-    TCOD_console_init_root(80, 50, "AnchorheadRL", false, TCOD_RENDERER_SDL);
+    TCOD_console_init_root(80, 50, "AnchorheadRL", true, TCOD_RENDERER_SDL);
     message_add("You are in a forest. Gnarled trees stick up through the hard earth like broken fingers. It is raining.");
     while (!TCOD_console_is_window_closed() && done == 0) {
         TCOD_console_clear(NULL);
@@ -753,6 +757,9 @@ int main() {
                     }
                 }
             }
+        }
+        else if (moved == 2) {
+            done = 1;
         }
         system_render(pcl.list);
         targeter_render();
