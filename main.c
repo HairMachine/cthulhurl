@@ -321,7 +321,7 @@ int entity_create_at_pos(EntityType t, int x, int y, int dir) {
 }
 
 void helper_damage(BodyComponent* b, int damage) {
-    if (b == 0) {
+    if (b == 0 || b->hp <= 0) {
         return;
     }
     message_add("Entity takes 1 damage.");
@@ -340,7 +340,7 @@ void helper_move(PositionComponent* p, int x, int y) {
     for (int i = 0; i < pcl.count; ++i) {
         PositionComponent* p2 = &pcl.list[i];
         if (newx == p2->x && newy == p2->y) {
-            if (p->solid == ST_SOLID && p2->solid == ST_SOLID) {
+            if (p->solid == ST_SOLID && p2->presence == PT_HERE && p2->solid == ST_SOLID) {
                 // collision!
                 BodyComponent* b = 0;
                 MACRO_ComponentFindById(p2->eid, bcl, b);
@@ -348,7 +348,7 @@ void helper_move(PositionComponent* p, int x, int y) {
                     helper_damage(b, 1);
                 }
                 return;
-            } else if (p->solid == ST_PROJECTILE && p2->solid == ST_SOLID) {
+            } else if (p->solid == ST_PROJECTILE && p2->presence == PT_HERE && p2->solid == ST_SOLID) {
                 BodyComponent* b = 0;
                 MACRO_ComponentFindById(p2->eid, bcl, b);
                 if (b != 0) {
@@ -542,7 +542,7 @@ void helper_ai_smart(PositionComponent* p, PositionComponent* target) {
     DijkstraMap* dm = dijkstra_map_init(MAPSIZEX, MAPSIZEY);
     for (int i = 0; i < pcl.count; ++i) {
         PositionComponent* tp = &pcl.list[i];
-        if (tp->solid == ST_SOLID) {
+        if (tp->solid == ST_SOLID && tp->presence == PT_HERE) {
             dijkstra_map_set_impassable(dm, tp->x, tp->y);
         }
     }
