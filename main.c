@@ -674,10 +674,7 @@ Map map_gen(MapType mt) {
         case MAP_FOREST:
             for (int x = 0; x < MAPSIZEX; x++) {
                 for (int y = 0; y < MAPSIZEY; y++) {
-                    if (x == 0 || y == 0 || x == MAPSIZEX - 1 || y == MAPSIZEY - 1) {
-                        map_add_entity(&m, entity_create_at_pos(ENT_WALL, x, y, 0));
-                    }
-                    else if (rand() % 20 == 0) {
+                    if (rand() % 15 == 0) {
                        map_add_entity(&m, entity_create_at_pos(ENT_TREE, x, y, 0));
                     }
                 }
@@ -756,6 +753,30 @@ int main() {
                         bcl.list[0].hp = bcl.list[0].maxHp;
                     }
                 }
+            }
+            if (pcl.list[0].x < 0 && worldPos.x > 0) {
+                map_unload();
+                worldPos.x--;
+                pcl.list[0].x = MAPSIZEX - 1;
+                map_load();
+            }
+            else if (pcl.list[0].x >= MAPSIZEX && worldPos.x < WORLDMAPX) {
+                map_unload();
+                worldPos.x++;
+                pcl.list[0].x = 0;
+                map_load();
+            }
+            else if (pcl.list[0].y < 0 && worldPos.y > 0) {
+                map_unload();
+                pcl.list[0].y = MAPSIZEY - 1;
+                worldPos.y--;
+                map_load();
+            }
+            else if (pcl.list[0].y >= MAPSIZEY && worldPos.y < WORLDMAPY) {
+                map_unload();
+                pcl.list[0].y = 0;
+                worldPos.y++;
+                map_load();
             }
         }
         else if (moved == 2) {
