@@ -6,7 +6,7 @@
 #include <string.h>
 #include "dijkstra.h"
 
-#define MAXCOMPONENTS 2048
+#define MAXCOMPONENTS 4096
 #define MAPSIZEX 40
 #define MAPSIZEY 40
 #define MAPRENDERSTART 40
@@ -371,11 +371,13 @@ PositionComponent* helper_find_closest(int fromX, int fromY, PositionComponent* 
     PositionComponent* c = 0;
     for (int i = 0; i < pcl.count; ++i) {
         PositionComponent* p = &pcl.list[i];
-        diffx = abs(fromX - p->x);
-        diffy = abs(fromY - p->y);
-        if (diffx + diffy < dist && p->eid != excluding->eid) {
-            dist = diffx + diffy;
-            c = p;
+        if (p->presence == PT_HERE) {
+            diffx = abs(fromX - p->x);
+            diffy = abs(fromY - p->y);
+            if (diffx + diffy < dist && p->eid != excluding->eid) {
+                dist = diffx + diffy;
+                c = p;
+            }
         }
     }
     return c;
@@ -542,7 +544,7 @@ void helper_ai_smart(PositionComponent* p, PositionComponent* target) {
     int targetY = 0;
     int val;
     int closest = 9999;
-    // todo: Some form of caching for maps? Reusable amongst all enemies, for example.
+    // todo: Collect enemies into groups based on target and calculate dijkstra maps once for each group
     DijkstraMap* dm = dijkstra_map_init(MAPSIZEX, MAPSIZEY);
     for (int i = 0; i < pcl.count; ++i) {
         PositionComponent* tp = &pcl.list[i];
@@ -600,7 +602,7 @@ void system_ai() {
                         }
                         break;
                     case AI_SMART:
-                        helper_ai_smart(p, &pcl.list[i]);
+                        helper_ai_smart(p, &pcl.list[0]);
                         break;
                     default:
                         break;
@@ -622,7 +624,7 @@ int system_attribute_test(Attribute* a, int bonus, int difficulty) {
 #define WORLDMAPX 16
 #define WORLDMAPY 16
 #define WORLDMAPZ 16
-#define MAXENT 255
+#define MAXMAPENT 1024
 
 typedef enum MapType {
     MAP_FOREST, MAP_STREETS
@@ -631,7 +633,7 @@ typedef enum MapType {
 typedef struct Map {
     int generated;
     int entityCount;
-    int entityList[MAXENT];
+    int entityList[MAXMAPENT];
 } Map;
 
 typedef struct Pos3d {
@@ -646,9 +648,9 @@ Pos3d worldPos;
 
 Map map_init() {
     Map m;
-    for (int i = 0; i < MAXENT; i++) {
-        m.generated = 0;
-        m.entityCount = 0;
+    m.generated = 0;
+    m.entityCount = 0;
+    for (int i = 0; i < MAXMAPENT; i++) {
         m.entityList[i] = 0;
     }
     return m;
@@ -665,42 +667,54 @@ void world_map_init() {
 }
 
 void map_add_entity(Map* m, int eid) {
+    if (m->entityCount == MAXMAPENT) {
+        return;
+    }
     m->entityList[m->entityCount++] = eid;
 }
 
-Map map_gen(MapType mt) {
-    Map m;
+void map_gen(Map* m, MapType mt) {
+    int num_monsters;
     switch (mt) {
         case MAP_FOREST:
             for (int x = 0; x < MAPSIZEX; x++) {
                 for (int y = 0; y < MAPSIZEY; y++) {
                     if (rand() % 15 == 0) {
-                       map_add_entity(&m, entity_create_at_pos(ENT_TREE, x, y, 0));
+                       map_add_entity(m, entity_create_at_pos(ENT_TREE, x, y, 0));
                     }
                 }
+            }
+            // todo: a proper monster generation
+            num_monsters = rand() % 3 + 3;
+            for (int i = 0; i < num_monsters; i++) {
+                map_add_entity(m, entity_create_at_pos(ENT_SLIME, rand() % MAPSIZEX, rand() % MAPSIZEY, 0));
             }
             break;
         case MAP_STREETS:
             for (int x = 0; x < MAPSIZEX; x++) {
                 for (int y = 0; y < MAPSIZEY; y++) {
                     if (x == 0 || y == 0 || x == MAPSIZEX - 1 || y == MAPSIZEY - 1) {
-                        map_add_entity(&m, entity_create_at_pos(ENT_WALL, x, y, 0));
+                        map_add_entity(m, entity_create_at_pos(ENT_WALL, x, y, 0));
                     }
                 }
             }
             break;
     }
-    return m;
+    m->generated = 1;
 }
 
 void map_unload() {
     Map* m = &worldMap[worldPos.z][worldPos.x][worldPos.y];
+    printf("Entity count: %i\n", m->entityCount);
     for (int i = 0; i < m->entityCount; ++i) {
         PositionComponent* p = 0;
         MACRO_ComponentFindById(m->entityList[i], pcl, p);
         // todo: probably should throw an error if this is not true - we have problems
-        if (p != 0) {
+        if (p != 0 && p->presence != PT_REMOVED) {
             p->presence = PT_ELSEWHERE;
+        }
+        else {
+            printf("Map referenced an entity which doesn't exist: %i\n", m->entityList[i]);
         }
     }
 }
@@ -709,13 +723,14 @@ void map_load() {
     Map* m = &worldMap[worldPos.z][worldPos.x][worldPos.y];
     if (m->generated == 0) {
         // todo: determine the map type based on x,y,z location according to some randomly gened worldDescription
-        *m = map_gen(MAP_FOREST);
+        map_gen(m, MAP_FOREST);
     }
     else {
-        for (int i = 0; i < 12; ++i) {
+        for (int i = 0; i < m->entityCount; ++i) {
             PositionComponent* p = 0;
             MACRO_ComponentFindById(m->entityList[i], pcl, p);
-            if (p != 0) {
+            // todo: actually clean up PT_REMOVED entities when you leave a map (in map_unload)
+            if (p != 0 && p->presence != PT_REMOVED) {
                 p->presence = PT_HERE;
             }
         }
@@ -734,9 +749,8 @@ int main() {
     worldPos.x = 8;
     worldPos.y = 8;
     map_load();
-    entity_create_at_pos(ENT_SLIME, 5, 5, 0);
     int done = 0;
-    TCOD_console_init_root(80, 50, "AnchorheadRL", true, TCOD_RENDERER_SDL);
+    TCOD_console_init_root(80, 50, "AnchorheadRL", false, TCOD_RENDERER_SDL);
     message_add("You are in a forest. Gnarled trees stick up through the hard earth like broken fingers. It is raining.");
     while (!TCOD_console_is_window_closed() && done == 0) {
         TCOD_console_clear(NULL);
